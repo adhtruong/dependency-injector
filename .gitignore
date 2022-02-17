@@ -1,0 +1,8 @@
+Pipfile
+Pipfile.lock
+*.pyc
+
+.coverage.*
+
+.vscode
+.venv
