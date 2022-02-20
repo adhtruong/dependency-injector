@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 from typing import Iterator, List
 
 import pytest
 
-from di.core import Depends, resolve
+from di import Depends, resolve
 
 
 def test_core() -> None:
@@ -105,3 +106,18 @@ def test_list_return() -> None:
         return param
 
     assert resolve(entry) == [1, 2]
+
+
+def test_class() -> None:
+    def get_str() -> str:
+        return "Hello World"
+
+    @dataclass
+    class MyClass:
+        a: int = 1
+        b: str = Depends(get_str)
+
+    def entry(my_class: MyClass = Depends(MyClass)) -> MyClass:
+        return my_class
+
+    assert resolve(entry) == MyClass(a=1, b="Hello World")
