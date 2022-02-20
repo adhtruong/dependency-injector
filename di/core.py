@@ -1,5 +1,7 @@
+import functools
 import inspect
 from contextlib import suppress
+from email.generator import DecodedGenerator
 from logging import getLogger
 from typing import Any, Callable, Generic, Iterator, TypeVar, Union, overload
 
@@ -58,12 +60,26 @@ class Resolver:
         return result
 
 
+DecoratedFunc = TypeVar("DecoratedFunc", bound=Callable)
+
+
+def auto_use(*dependency: Callable[..., _RType]) -> Callable[[DecoratedFunc], DecoratedFunc]:
+    def wrapper(f: DecoratedFunc) -> DecoratedFunc:
+        f.__dependencies__ = dependency
+        return f
+
+    return wrapper
+
+
 def resolve(f: Callable[..., _RType]) -> _RType:
     resolver = Resolver()
     return resolver(f)
 
 
 def _resolve(f: Callable[..., _RType], cache: dict[Callable, Any]) -> tuple[_RType, list[Iterator]]:
+    for dependency in getattr(f, "__dependencies__", ()):
+        _resolve(dependency, cache)
+
     function_signature = inspect.signature(f)
     resolved_parameters: dict[str, Any] = {}
     teardowns: list[Iterator] = []
