@@ -14,9 +14,17 @@
     </a>
 </p>
 
+---
+
+**Documentation**: <a href="https://adhtruong.github.io/dependency-injector" target="_blank">https://adhtruong.github.io/dependency-injector</a>
+
+**Source Code**: <a href="https://github.com/adhtruong/dependency-injector" target="_blank">https://github.com/adhtruong/dependency-injector</a>
+
+---
+
 Framework for dependency injection.
 
-## Example
+## Quick start
 
 ```python
 from di import Depends, resolve
@@ -36,7 +44,7 @@ print(resolve(square))  # print 4
 
 ## Development Set Up
 
-```
+```bash
     pip install -r requirements-dev.txt
     pre-commit install
 ```
