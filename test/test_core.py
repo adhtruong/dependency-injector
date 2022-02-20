@@ -1,9 +1,12 @@
+import os
 from dataclasses import dataclass
 from typing import Iterator, List
+from unittest import mock
 
 import pytest
 
 from di import Depends, resolve
+from di.core import FromEnv
 
 
 def test_core() -> None:
@@ -121,3 +124,14 @@ def test_class() -> None:
         return my_class
 
     assert resolve(entry) == MyClass(a=1, b="Hello World")
+
+
+def test_from_env() -> None:
+    def my_function(a: int = FromEnv("a")) -> int:
+        return a
+
+    with mock.patch.dict(os.environ, {"a": "2"}):
+        assert resolve(my_function) == 2
+
+    with pytest.raises(RuntimeError):
+        resolve(my_function)
