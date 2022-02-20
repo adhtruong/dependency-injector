@@ -1,8 +1,8 @@
-# Template Python Project
+# Dependency Injector
 
 <p align="center">
-    <a href="https://codecov.io/gh/{{ repo }}">
-        <img src="https://codecov.io/gh/{{ repo }}/main/graph/badge.svg?token=4I7OINJKAO"/>
+    <a href="https://codecov.io/gh/adhtruong/dependency-injector">
+        <img src="https://codecov.io/gh/adhtruong/dependency-injector/main/graph/badge.svg?token=4I7OINJKAO"/>
     </a>
     <a href="https://github.com/psf/black">
         <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg">
@@ -12,7 +12,7 @@
     </a>
 </p>
 
-Template python project that sets up standard developer requirements, precommits and CI tools.
+Framework for dependency injection.
 
 ## Development Set Up
 
