@@ -71,9 +71,7 @@ def test_no_cache() -> None:
         calls += 1
         return 1
 
-    def entrypoint(
-        a: int = Depends(my_function), b: int = Depends(my_function, use_cache=False)
-    ) -> int:
+    def entrypoint(a: int = Depends(my_function), b: int = Depends(my_function, use_cache=False)) -> int:
         return a + b
 
     assert resolve(entrypoint) == 2
@@ -84,9 +82,7 @@ def test_exception() -> None:
     def entrypoint(unresolved: int) -> None:
         return None
 
-    with pytest.raises(
-        RuntimeError, match="Unable to resolve parameter = 'unresolved' for 'entrypoint'"
-    ):
+    with pytest.raises(RuntimeError, match="Unable to resolve parameter = 'unresolved' for 'entrypoint'"):
         resolve(entrypoint)
 
 
