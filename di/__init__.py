@@ -1,8 +1,9 @@
 __all__ = (
     "Depends",
-    "resolve",
+    "FromEnv",
     "Resolver",
+    "resolve",
 )
 
 
-from .core import Depends, Resolver, resolve
+from .core import Depends, FromEnv, Resolver, resolve

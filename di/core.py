@@ -1,4 +1,5 @@
 import inspect
+import os
 from contextlib import suppress
 from logging import getLogger
 from typing import Any, Callable, Generic, Iterator, TypeVar, Union, overload
@@ -45,6 +46,15 @@ def Depends(
     return _Depends(dependency, use_cache=use_cache)  # type: ignore
 
 
+class _FromEnv(Generic[_RType]):
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+def FromEnv(name: str) -> Any:
+    return _FromEnv(name)
+
+
 class Resolver:
     def __init__(self) -> None:
         self._cache: dict[Callable, Any] = {}
@@ -72,16 +82,21 @@ def _resolve(f: Callable[..., _RType], cache: dict[Callable, Any]) -> tuple[_RTy
         if default is inspect.Parameter.empty:
             raise RuntimeError(f"Unable to resolve {parameter = } for '{f.__name__}'")
 
-        if not isinstance(default, _Depends):
-            resolved_parameters[parameter] = default
-            continue
-
-        if default.use_cache and default.dependency in cache:
-            resolved_value = cache[default.dependency]
+        if isinstance(default, _FromEnv):
+            raw_value = os.environ.get(default.name)
+            if raw_value is None:
+                raise RuntimeError()
+            resolved_value = value.annotation(raw_value)
+        elif isinstance(default, _Depends):
+            if default.use_cache and default.dependency in cache:
+                resolved_value = cache[default.dependency]
+            else:
+                resolved_value, teardowns_ = _resolve(default.dependency, cache)
+                teardowns.extend(teardowns_)
+                cache[default.dependency] = resolved_value
         else:
-            resolved_value, teardowns_ = _resolve(default.dependency, cache)
-            teardowns.extend(teardowns_)
-            cache[default.dependency] = resolved_value
+            resolved_value = default
+
         resolved_parameters[parameter] = resolved_value
 
     result_generator = f(**resolved_parameters)
