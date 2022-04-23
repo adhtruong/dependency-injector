@@ -2,7 +2,7 @@ import inspect
 from contextlib import suppress
 from typing import Any, Callable, Iterator, Optional, TypeVar, Union
 
-from di.parameter_resolver import ParamResolver, get_overrides, resolve_depends
+from di.parameter_resolver import get_parameter_resolve
 
 _RType = TypeVar("_RType")
 
@@ -11,13 +11,11 @@ class Resolver:
     def __init__(
         self,
         overrides: dict[Callable, Callable] = None,
+        name_resolvers: dict[str, Callable] = None,
     ) -> None:
-        if overrides is None:
-            overrides = {}
-
         self._cache: dict[Callable, Any] = {}
         self._teardowns: list[Iterator] = []
-        self._param_resolver = ParamResolver((get_overrides(overrides), resolve_depends))
+        self._param_resolver = get_parameter_resolve(overrides, name_resolvers)
 
     def __call__(self, f: Callable[..., _RType]) -> _RType:
         result = self._resolve(f)
@@ -59,10 +57,16 @@ def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tup
     return result_generator, None
 
 
-def resolve(f: Callable[..., _RType], overrides: dict[Callable, Callable] = None) -> _RType:
-    resolver = Resolver(overrides=overrides)
+def resolve(
+    f: Callable[..., _RType],
+    /,
+    *,
+    overrides: dict[Callable, Callable] = None,
+    name_resolvers: dict[str, Callable] = None,
+) -> _RType:
+    resolver = Resolver(overrides=overrides, name_resolvers=name_resolvers)
     return resolver(f)
 
 
-def inject(f: Callable[..., _RType]) -> Callable[..., _RType]:
+def inject(f: Callable[..., _RType], /) -> Callable[..., _RType]:
     return lambda: Resolver()(f)

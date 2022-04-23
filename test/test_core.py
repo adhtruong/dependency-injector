@@ -129,6 +129,13 @@ def test_overrides() -> None:
     assert resolve(entry, overrides={my_function: lambda: [1]}) == [1]
 
 
+def test_name_resolver() -> None:
+    def entry(param: list[int]) -> list[int]:
+        return param
+
+    assert resolve(entry, name_resolvers={"param": lambda: [1]}) == [1]
+
+
 def test_class() -> None:
     def get_str() -> str:
         return "Hello World"
