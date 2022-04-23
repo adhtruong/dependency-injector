@@ -94,7 +94,7 @@ def test_exception() -> None:
     def entrypoint(unresolved: int) -> None:
         return None
 
-    with pytest.raises(RuntimeError, match="Unable to resolve parameter = 'unresolved' for 'entrypoint'"):
+    with pytest.raises(TypeError, match=r"entrypoint\(\) missing 1 required positional argument: 'unresolved'"):
         resolve(entrypoint)
 
 

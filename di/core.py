@@ -1,61 +1,58 @@
 import inspect
 from contextlib import suppress
-from logging import getLogger
-from typing import Any, Callable, Generic, Iterator, TypeVar, Union, overload
+from typing import Any, Callable, Iterator, Optional, TypeVar, Union
 
-logger = getLogger(__name__)
+from di.parameter_resolver import ParamResolver
 
 _RType = TypeVar("_RType")
 
 
-class _Depends(Generic[_RType]):
+class Resolver:
     def __init__(
         self,
-        dependency: Union[Callable[..., _RType], Callable[..., Iterator[_RType]]],
-        *,
-        use_cache: bool = True,
-    ):
-        self.dependency = dependency
-        self.use_cache = use_cache
-
-
-@overload
-def Depends(
-    dependency: Callable[..., Iterator[_RType]],
-    *,
-    use_cache: bool = True,
-) -> _RType:
-    ...
-
-
-@overload
-def Depends(
-    dependency: Callable[..., _RType],
-    *,
-    use_cache: bool = True,
-) -> _RType:
-    ...
-
-
-def Depends(
-    dependency: Union[Callable[..., _RType], Callable[..., Iterator[_RType]]],
-    *,
-    use_cache: bool = True,
-) -> _RType:
-    return _Depends(dependency, use_cache=use_cache)  # type: ignore
-
-
-class Resolver:
-    def __init__(self) -> None:
+    ) -> None:
         self._cache: dict[Callable, Any] = {}
+        self._teardowns: list[Iterator] = []
+        self._param_resolver = ParamResolver()
 
     def __call__(self, f: Callable[..., _RType]) -> _RType:
-        result, teardowns = _resolve(f, self._cache)
-        for teardown in reversed(teardowns):
+        result = self._resolve(f)
+        for teardown in reversed(self._teardowns):
             with suppress(StopIteration):
                 next(teardown)
 
+        self._teardowns = []
+
         return result
+
+    def _resolve(self, f: Callable[..., _RType]) -> _RType:
+        resolved_parameters: dict[str, Any] = {}
+        for name, parameter in inspect.signature(f).parameters.items():
+            key = self._param_resolver(name, parameter)
+            if key is None:
+                continue
+
+            if key.use_cache and key.resolver in self._cache:
+                resolved_value = self._cache[key.resolver]
+            else:
+                resolved_value = self._resolve(key.resolver)
+                self._cache[key.resolver] = resolved_value
+            resolved_parameters[name] = resolved_value
+
+        result_generator = f(**resolved_parameters)
+        resolved_value, teardown = _resolve_generator(result_generator)
+        if teardown is not None:
+            self._teardowns.append(teardown)
+
+        return resolved_value
+
+
+def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tuple[_RType, Optional[Iterator]]:
+    if isinstance(result_generator, Iterator):
+        resolved_value = next(result_generator)
+        return resolved_value, result_generator
+
+    return result_generator, None
 
 
 def resolve(f: Callable[..., _RType]) -> _RType:
@@ -65,33 +62,3 @@ def resolve(f: Callable[..., _RType]) -> _RType:
 
 def inject(f: Callable[..., _RType]) -> Callable[..., _RType]:
     return lambda: Resolver()(f)
-
-
-def _resolve(f: Callable[..., _RType], cache: dict[Callable, Any]) -> tuple[_RType, list[Iterator]]:
-    function_signature = inspect.signature(f)
-    resolved_parameters: dict[str, Any] = {}
-    teardowns: list[Iterator] = []
-    for parameter, value in function_signature.parameters.items():
-        default = value.default
-        if default is inspect.Parameter.empty:
-            raise RuntimeError(f"Unable to resolve {parameter = } for '{f.__name__}'")
-
-        if not isinstance(default, _Depends):
-            continue
-
-        if default.use_cache and default.dependency in cache:
-            resolved_value = cache[default.dependency]
-        else:
-            resolved_value, teardowns_ = _resolve(default.dependency, cache)
-            teardowns.extend(teardowns_)
-            cache[default.dependency] = resolved_value
-        resolved_parameters[parameter] = resolved_value
-
-    result_generator = f(**resolved_parameters)
-    if isinstance(result_generator, Iterator):
-        resolved_value = next(result_generator)
-        teardowns.append(result_generator)
-    else:
-        resolved_value = result_generator
-
-    return resolved_value, teardowns

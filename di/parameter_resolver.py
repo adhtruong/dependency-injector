@@ -1,0 +1,38 @@
+import inspect
+from dataclasses import dataclass
+from typing import Callable, Optional, Sequence
+
+from di.depends import _Depends
+
+
+@dataclass(frozen=True)
+class Key:
+    resolver: Callable
+    use_cache: bool
+
+
+ParamResolverT = Callable[[str, inspect.Parameter], Optional[Key]]
+
+
+def _resolve_depends(_: str, parameter: inspect.Parameter) -> Optional[Key]:
+    default = parameter.default
+    if not isinstance(default, _Depends):
+        return None
+
+    return Key(
+        resolver=default.dependency,
+        use_cache=default.use_cache,
+    )
+
+
+class ParamResolver:
+    def __init__(self, resolvers: Sequence[ParamResolverT] = (_resolve_depends,)):
+        self._resolvers: Sequence[ParamResolverT] = resolvers
+
+    def __call__(self, name: str, parameter: inspect.Parameter) -> Optional[Key]:
+        for param_resolver in self._resolvers:
+            key = param_resolver(name, parameter)
+            if key is not None:
+                return key
+
+        return None
