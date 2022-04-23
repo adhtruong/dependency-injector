@@ -2,7 +2,7 @@ import inspect
 from contextlib import suppress
 from typing import Any, Callable, Iterator, Optional, TypeVar, Union
 
-from di.parameter_resolver import ParamResolver
+from di.parameter_resolver import ParamResolver, get_overrides, resolve_depends
 
 _RType = TypeVar("_RType")
 
@@ -10,10 +10,14 @@ _RType = TypeVar("_RType")
 class Resolver:
     def __init__(
         self,
+        overrides: dict[Callable, Callable] = None,
     ) -> None:
+        if overrides is None:
+            overrides = {}
+
         self._cache: dict[Callable, Any] = {}
         self._teardowns: list[Iterator] = []
-        self._param_resolver = ParamResolver()
+        self._param_resolver = ParamResolver((get_overrides(overrides), resolve_depends))
 
     def __call__(self, f: Callable[..., _RType]) -> _RType:
         result = self._resolve(f)
@@ -55,8 +59,8 @@ def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tup
     return result_generator, None
 
 
-def resolve(f: Callable[..., _RType]) -> _RType:
-    resolver = Resolver()
+def resolve(f: Callable[..., _RType], overrides: dict[Callable, Callable] = None) -> _RType:
+    resolver = Resolver(overrides=overrides)
     return resolver(f)
 
 

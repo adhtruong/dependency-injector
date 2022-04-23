@@ -119,6 +119,16 @@ def test_list_return() -> None:
     assert resolve(entry) == [1, 2]
 
 
+def test_overrides() -> None:
+    def my_function() -> List[int]:
+        return [1, 2]
+
+    def entry(param: list[int] = Depends(my_function)) -> list[int]:
+        return param
+
+    assert resolve(entry, overrides={my_function: lambda: [1]}) == [1]
+
+
 def test_class() -> None:
     def get_str() -> str:
         return "Hello World"
