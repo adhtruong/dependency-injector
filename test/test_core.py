@@ -4,16 +4,27 @@ from typing import Iterator, List
 import pytest
 
 from di import Depends, resolve
+from di.core import inject
 
 
 def test_core() -> None:
     def get_a() -> int:
         return 1
 
-    def get_b(a: int = Depends(get_a)) -> int:
-        return 1 + a
+    def get_b(a: int = Depends(get_a), b: int = Depends(lambda: 0)) -> int:
+        return 1 + a + b
 
     assert resolve(get_b) == 2
+
+
+def test_inject() -> None:
+    @inject
+    def my_func(my_list: list = Depends(list)) -> list:
+        return my_list
+
+    all_result = [my_func(), my_func(), my_func()]
+    assert all(result == [] for result in all_result)
+    assert all_result[0] is not all_result[1]
 
 
 def test_generator() -> None:
