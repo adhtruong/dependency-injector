@@ -1,7 +1,4 @@
 [tool.black]
-line-length = 120
-target-version = ['py37']
-include = '\.pyi?$'
 exclude = '''
 (
   /(
@@ -20,3 +17,29 @@ exclude = '''
                      # the root of the project
 )
 '''
+include = '\.pyi?$'
+line-length = 120
+target-version = ['py37']
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "def __str__",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "@overload",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["di"]
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+addopts = "-ra -v --durations=5 --cov=di"
