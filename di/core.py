@@ -14,20 +14,17 @@ class Resolver:
         name_resolvers: dict[str, Callable] = None,
     ) -> None:
         self._cache: dict[Callable, Any] = {}
-        self._teardowns: list[Iterator] = []
         self._param_resolver = get_parameter_resolve(overrides, name_resolvers)
 
     def __call__(self, f: Callable[..., _RType]) -> _RType:
-        result = self._resolve(f)
-        for teardown in reversed(self._teardowns):
+        result, teardowns = self._resolve(f, [])
+        for teardown in reversed(teardowns):
             with suppress(StopIteration):
                 next(teardown)
 
-        self._teardowns = []
-
         return result
 
-    def _resolve(self, f: Callable[..., _RType]) -> _RType:
+    def _resolve(self, f: Callable[..., _RType], teardowns: list[Iterator]) -> tuple[_RType, list[Iterator]]:
         resolved_parameters: dict[str, Any] = {}
         for name, parameter in inspect.signature(f).parameters.items():
             key = self._param_resolver(name, parameter)
@@ -37,16 +34,16 @@ class Resolver:
             if key.use_cache and key.resolver in self._cache:
                 resolved_value = self._cache[key.resolver]
             else:
-                resolved_value = self._resolve(key.resolver)
+                resolved_value, teardowns = self._resolve(key.resolver, teardowns)
                 self._cache[key.resolver] = resolved_value
             resolved_parameters[name] = resolved_value
 
         result_generator = f(**resolved_parameters)
         resolved_value, teardown = _resolve_generator(result_generator)
         if teardown is not None:
-            self._teardowns.append(teardown)
+            teardowns.append(teardown)
 
-        return resolved_value
+        return resolved_value, teardowns
 
 
 def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tuple[_RType, Optional[Iterator]]:
