@@ -63,6 +63,10 @@ def resolve(f: Callable[..., _RType]) -> _RType:
     return resolver(f)
 
 
+def inject(f: Callable[..., _RType]) -> Callable[..., _RType]:
+    return lambda: Resolver()(f)
+
+
 def _resolve(f: Callable[..., _RType], cache: dict[Callable, Any]) -> tuple[_RType, list[Iterator]]:
     function_signature = inspect.signature(f)
     resolved_parameters: dict[str, Any] = {}
@@ -73,7 +77,6 @@ def _resolve(f: Callable[..., _RType], cache: dict[Callable, Any]) -> tuple[_RTy
             raise RuntimeError(f"Unable to resolve {parameter = } for '{f.__name__}'")
 
         if not isinstance(default, _Depends):
-            resolved_parameters[parameter] = default
             continue
 
         if default.use_cache and default.dependency in cache:
