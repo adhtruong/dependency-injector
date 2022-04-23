@@ -1,12 +1,12 @@
-from typing import Callable, Generic, Iterator, TypeVar, Union, overload
+from typing import Callable, Generic, Iterator, overload
 
-_RType = TypeVar("_RType")
+from di.types import FactoryType, RType
 
 
-class _Depends(Generic[_RType]):
+class _Depends(Generic[RType]):
     def __init__(
         self,
-        dependency: Union[Callable[..., _RType], Callable[..., Iterator[_RType]]],
+        dependency: FactoryType,
         *,
         use_cache: bool = True,
     ):
@@ -16,25 +16,25 @@ class _Depends(Generic[_RType]):
 
 @overload
 def Depends(
-    dependency: Callable[..., Iterator[_RType]],
+    dependency: Callable[..., Iterator[RType]],
     *,
     use_cache: bool = True,
-) -> _RType:
+) -> RType:
     ...
 
 
 @overload
 def Depends(
-    dependency: Callable[..., _RType],
+    dependency: Callable[..., RType],
     *,
     use_cache: bool = True,
-) -> _RType:
+) -> RType:
     ...
 
 
 def Depends(
-    dependency: Union[Callable[..., _RType], Callable[..., Iterator[_RType]]],
+    dependency: FactoryType,
     *,
     use_cache: bool = True,
-) -> _RType:
+) -> RType:
     return _Depends(dependency, use_cache=use_cache)  # type: ignore

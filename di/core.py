@@ -1,22 +1,21 @@
 import inspect
 from contextlib import suppress
-from typing import Any, Callable, Iterator, Optional, TypeVar, Union
+from typing import Any, Callable, Iterator, Optional, Union
 
 from di.parameter_resolver import get_parameter_resolve
-
-_RType = TypeVar("_RType")
+from di.types import FactoryType, RType
 
 
 class Resolver:
     def __init__(
         self,
-        overrides: dict[Callable, Callable] = None,
-        name_resolvers: dict[str, Callable] = None,
+        overrides: dict[FactoryType, FactoryType] = None,
+        name_resolvers: dict[str, FactoryType] = None,
     ) -> None:
-        self._cache: dict[Callable, Any] = {}
+        self._cache: dict[FactoryType, Any] = {}
         self._param_resolver = get_parameter_resolve(overrides, name_resolvers)
 
-    def __call__(self, f: Callable[..., _RType]) -> _RType:
+    def __call__(self, f: FactoryType[RType]) -> RType:
         result, teardowns = self._resolve(f, [])
         for teardown in reversed(teardowns):
             with suppress(StopIteration):
@@ -24,7 +23,7 @@ class Resolver:
 
         return result
 
-    def _resolve(self, f: Callable[..., _RType], teardowns: list[Iterator]) -> tuple[_RType, list[Iterator]]:
+    def _resolve(self, f: FactoryType[RType], teardowns: list[Iterator]) -> tuple[RType, list[Iterator]]:
         resolved_parameters: dict[str, Any] = {}
         for name, parameter in inspect.signature(f).parameters.items():
             key = self._param_resolver(name, parameter)
@@ -46,7 +45,7 @@ class Resolver:
         return resolved_value, teardowns
 
 
-def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tuple[_RType, Optional[Iterator]]:
+def _resolve_generator(result_generator: Union[Iterator[RType], RType]) -> tuple[RType, Optional[Iterator]]:
     if isinstance(result_generator, Iterator):
         resolved_value = next(result_generator)
         return resolved_value, result_generator
@@ -55,15 +54,15 @@ def _resolve_generator(result_generator: Union[Iterator[_RType], _RType]) -> tup
 
 
 def resolve(
-    f: Callable[..., _RType],
+    f: FactoryType,
     /,
     *,
     overrides: dict[Callable, Callable] = None,
     name_resolvers: dict[str, Callable] = None,
-) -> _RType:
+) -> RType:
     resolver = Resolver(overrides=overrides, name_resolvers=name_resolvers)
     return resolver(f)
 
 
-def inject(f: Callable[..., _RType], /) -> Callable[..., _RType]:
+def inject(f: FactoryType[RType], /) -> Callable[..., RType]:
     return lambda: Resolver()(f)
