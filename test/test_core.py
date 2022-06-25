@@ -4,7 +4,7 @@ from typing import Iterator, List
 import pytest
 
 from di import Depends, resolve
-from di.core import inject
+from di.core import auto_use, inject
 
 
 def test_core() -> None:
@@ -149,3 +149,24 @@ def test_class() -> None:
         return my_class
 
     assert resolve(entry) == MyClass(a=1, b="Hello World")
+
+
+def test_auto_use() -> None:
+    is_called: list[int] = []
+
+    def my_dependency() -> None:
+        nonlocal is_called
+        is_called.append(2)
+
+    def generator() -> Iterator[None]:
+        nonlocal is_called
+        is_called.append(1)
+        yield
+        is_called.append(3)
+
+    @auto_use(generator, my_dependency)
+    def my_function() -> None:
+        return None
+
+    resolve(my_function)
+    assert is_called == [1, 2, 3]

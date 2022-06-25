@@ -1,9 +1,22 @@
 import inspect
 from contextlib import suppress
-from typing import Any, Callable, Iterator, Optional, Union
+from typing import Any, Callable, Final, Iterator, Optional, TypeVar, Union
 
 from di.parameter_resolver import get_parameter_resolve
 from di.types import FactoryType, RType
+
+DecoratedFunc = TypeVar("DecoratedFunc", bound=Callable)
+
+_DEPENDENCIES_ATTRIBUTE: Final[str] = "__dependencies__"
+
+
+def auto_use(*dependency: FactoryType) -> Callable[[DecoratedFunc], DecoratedFunc]:
+    def inner(f: DecoratedFunc) -> DecoratedFunc:
+        current = getattr(f, _DEPENDENCIES_ATTRIBUTE, ())
+        setattr(f, _DEPENDENCIES_ATTRIBUTE, current + dependency)
+        return f
+
+    return inner
 
 
 class Resolver:
@@ -15,26 +28,37 @@ class Resolver:
         self._cache: dict[FactoryType, Any] = {}
         self._param_resolver = get_parameter_resolve(overrides, name_resolvers)
 
-    def __call__(self, f: FactoryType[RType]) -> RType:
-        result, teardowns = self._resolve(f, [])
+    def __call__(self, f: FactoryType[RType], *, use_cache: bool = True) -> RType:
+        result, teardowns = self._resolve(f, use_cache, [])
         for teardown in reversed(teardowns):
             with suppress(StopIteration):
                 next(teardown)
 
         return result
 
-    def _resolve(self, f: FactoryType[RType], teardowns: list[Iterator]) -> tuple[RType, list[Iterator]]:
+    def _resolve(
+        self,
+        f: FactoryType[RType],
+        use_cache: bool,
+        teardowns: list[Iterator],
+    ) -> tuple[RType, list[Iterator]]:
+        if use_cache and f in self._cache:
+            return self._cache[f], teardowns
+
+        for autouse in getattr(f, _DEPENDENCIES_ATTRIBUTE, ()):
+            _, teardowns = self._resolve(
+                autouse,
+                True,
+                teardowns,
+            )
+
         resolved_parameters: dict[str, Any] = {}
         for name, parameter in inspect.signature(f).parameters.items():
             key = self._param_resolver(name, parameter)
             if key is None:
                 continue
 
-            if key.use_cache and key.resolver in self._cache:
-                resolved_value = self._cache[key.resolver]
-            else:
-                resolved_value, teardowns = self._resolve(key.resolver, teardowns)
-                self._cache[key.resolver] = resolved_value
+            resolved_value, teardowns = self._resolve(key.resolver, key.use_cache, teardowns)
             resolved_parameters[name] = resolved_value
 
         result_generator = f(**resolved_parameters)
@@ -42,6 +66,7 @@ class Resolver:
         if teardown is not None:
             teardowns.append(teardown)
 
+        self._cache[f] = resolved_value
         return resolved_value, teardowns
 
 
@@ -54,7 +79,7 @@ def _resolve_generator(result_generator: Union[Iterator[RType], RType]) -> tuple
 
 
 def resolve(
-    f: FactoryType,
+    f: FactoryType[RType],
     /,
     *,
     overrides: dict[Callable, Callable] = None,
