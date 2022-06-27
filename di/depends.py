@@ -6,7 +6,7 @@ from di.types import FactoryType, RType
 class _Depends(Generic[RType]):
     def __init__(
         self,
-        dependency: FactoryType,
+        dependency: FactoryType[RType],
         *,
         use_cache: bool = True,
     ):
@@ -33,7 +33,7 @@ def Depends(
 
 
 def Depends(
-    dependency: FactoryType,
+    dependency: FactoryType[RType],
     *,
     use_cache: bool = True,
 ) -> RType:

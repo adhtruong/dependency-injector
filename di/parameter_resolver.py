@@ -1,13 +1,14 @@
 import inspect
 from dataclasses import dataclass
-from typing import Callable, Optional, Sequence
+from typing import Callable, Generic, Optional, Sequence
 
 from di.depends import _Depends
+from di.types import FactoryType, RType
 
 
 @dataclass(frozen=True)
-class Key:
-    resolver: Callable
+class Key(Generic[RType]):
+    resolver: FactoryType[RType]
     use_cache: bool
 
 
